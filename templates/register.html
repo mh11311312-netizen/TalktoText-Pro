@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Register — TalkToText Pro{% endblock %}
+{% block content %}
+<div class="auth-wrap">
+  <div class="auth-split">
+    <!-- Left: brand hero panel -->
+    <div class="auth-hero">
+      <div class="h-logo">🎙️ TalkToText Pro</div>
+      <h2>Never miss a meeting detail again.</h2>
+      <p>Create your free account and let AI write your meeting notes for you.</p>
+      <ul>
+        <li><span>🎤</span> Upload or record meetings</li>
+        <li><span>📝</span> Instant structured minutes</li>
+        <li><span>📋</span> Track action items &amp; deadlines</li>
+        <li><span>🔊</span> Listen to your notes</li>
+      </ul>
+    </div>
+
+    <!-- Right: register form -->
+    <div class="auth-form-side">
+      <h1>Create account</h1>
+      <p class="auth-sub">Get started — it only takes a minute.</p>
+
+      <form method="POST" action="{{ url_for('register') }}">
+        <label>Username</label>
+        <input type="text" name="username" placeholder="Choose a username" required />
+
+        <label>Password</label>
+        <input type="password" name="password" placeholder="Choose a password" required />
+
+        <button type="submit" class="btn-primary full big">Create account →</button>
+      </form>
+
+      <p class="auth-switch">
+        Already have an account? <a href="{{ url_for('login') }}">Log in</a>
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}

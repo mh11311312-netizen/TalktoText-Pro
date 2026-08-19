@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Login — TalkToText Pro{% endblock %}
+{% block content %}
+<div class="auth-wrap">
+  <div class="auth-split">
+    <!-- Left: brand hero panel -->
+    <div class="auth-hero">
+      <div class="h-logo">🎙️ TalkToText Pro</div>
+      <h2>Turn meetings into clear, actionable notes.</h2>
+      <p>AI-powered transcription, summaries, and insights — all in one place.</p>
+      <ul>
+        <li><span>🗣️</span> Speech-to-text in any language</li>
+        <li><span>✨</span> Summaries, decisions &amp; action items</li>
+        <li><span>💬</span> Chat with your meetings</li>
+        <li><span>📈</span> Analytics &amp; insights dashboard</li>
+      </ul>
+    </div>
+
+    <!-- Right: login form -->
+    <div class="auth-form-side">
+      <h1>Welcome back</h1>
+      <p class="auth-sub">Log in to your account to continue.</p>
+
+      <form method="POST" action="{{ url_for('login') }}">
+        <label>Username</label>
+        <input type="text" name="username" placeholder="Your username" required />
+
+        <label>Password</label>
+        <input type="password" name="password" placeholder="Your password" required />
+
+        <button type="submit" class="btn-primary full big">Log in →</button>
+      </form>
+
+      <p class="auth-switch">
+        New here? <a href="{{ url_for('register') }}">Create an account</a>
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}

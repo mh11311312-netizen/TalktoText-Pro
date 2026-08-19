@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+{% block title %}{{ meeting.title }} — TalkToText Pro{% endblock %}
+{% block content %}
+
+<!-- Store the meeting id so script.js knows which meeting we are on -->
+<div id="meetingData" data-id="{{ meeting._id }}"></div>
+<!-- Hidden audio player used by the "Listen to Notes" button -->
+<audio id="notesAudio" class="hidden" controls></audio>
+
+<div class="page-head">
+  <h1>{{ meeting.title }}</h1>
+  <p class="muted">
+    Language: {{ meeting.language }}
+    {% if meeting.was_translated %}· translated to English{% endif %}
+    · {{ meeting.created_at[:10] }}
+  </p>
+</div>
+
+<!-- TL;DR — the whole meeting in one line -->
+{% if meeting.notes.tldr %}
+<div class="tldr-bar">⚡ <b>In a nutshell:</b> {{ meeting.notes.tldr }}</div>
+{% endif %}
+
+<!-- toolbar: downloads, listen, email, language -->
+<div class="toolbar">
+  <a class="btn-ghost" href="{{ url_for('download', meeting_id=meeting._id, file_format='pdf') }}">⬇️ PDF</a>
+  <a class="btn-ghost" href="{{ url_for('download', meeting_id=meeting._id, file_format='docx') }}">⬇️ Word</a>
+  <a class="btn-ghost" href="{{ url_for('calendar', meeting_id=meeting._id) }}">📅 Calendar (.ics)</a>
+  <button class="btn-ghost" id="listenBtn">🔊 Listen to Notes</button>
+  <button class="btn-ghost" id="emailBtn">✉️ Follow-up Email</button>
+  <div class="lang-inline">
+    <select id="notesLang" class="text-input small">
+      <option value="English">English</option>
+      <option value="Urdu">Urdu</option>
+      <option value="Arabic">Arabic</option>
+      <option value="Spanish">Spanish</option>
+      <option value="French">French</option>
+    </select>
+    <button class="btn-ghost" id="translateBtn">🌐 Regenerate</button>
+  </div>
+</div>
+
+<!-- stat cards -->
+<div class="stats-row">
+  <div class="stat-card">
+    <div class="stat-num">{{ meeting.notes.key_points|length }}</div>
+    <div class="stat-label">Key Points</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num">{{ meeting.notes.decisions|length }}</div>
+    <div class="stat-label">Decisions</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num">{{ meeting.notes.action_items|length }}</div>
+    <div class="stat-label">Action Items</div>
+  </div>
+  <div class="stat-card sentiment-{{ meeting.notes.sentiment.label|lower }}">
+    <div class="stat-num">{{ meeting.notes.sentiment.label }}</div>
+    <div class="stat-label">Sentiment</div>
+  </div>
+</div>
+
+<div class="grid-2">
+  <!-- LEFT COLUMN -->
+  <div>
+    <!-- Summary -->
+    <div class="card">
+      <h2>📝 Abstract Summary</h2>
+      <p id="summaryText">{{ meeting.notes.summary }}</p>
+    </div>
+
+    <!-- Key points -->
+    <div class="card">
+      <h2>💡 Key Discussion Points</h2>
+      <ul id="keyPointsList" class="clean-list">
+        {% for point in meeting.notes.key_points %}
+          <li>{{ point }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <!-- Decisions -->
+    <div class="card">
+      <h2>✅ Decisions Made</h2>
+      <ul id="decisionsList" class="clean-list">
+        {% for d in meeting.notes.decisions %}
+          <li>{{ d }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <!-- Action items with checkboxes + priority -->
+    <div class="card">
+      <h2>📋 Action Items</h2>
+      <div id="actionItems">
+        {% for a in meeting.notes.action_items %}
+        <div class="action-item">
+          <input type="checkbox" class="ai-check" data-idx="{{ loop.index0 }}"
+                 {% if a.done %}checked{% endif %} />
+          <div class="ai-body">
+            <div class="ai-task">{{ a.task }}</div>
+            <div class="ai-meta">
+              👤 {{ a.owner or 'Unassigned' }} ·
+              🗓️ {{ a.deadline or 'Not specified' }}
+              <span class="pill priority-{{ (a.priority or 'Medium')|lower }}">
+                {{ a.priority or 'Medium' }}
+              </span>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Jargon / acronym glossary -->
+    {% if meeting.notes.glossary %}
+    <div class="card">
+      <h2>📖 Glossary</h2>
+      <ul class="clean-list">
+        {% for g in meeting.notes.glossary %}
+          <li><b>{{ g.term }}</b> — {{ g.definition }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- RIGHT COLUMN -->
+  <div>
+    <!-- Topic word/keyword tags + chart -->
+    <div class="card">
+      <h2>📊 Topics & Sentiment</h2>
+      <div class="tags">
+        {% for kw in meeting.notes.keywords %}
+          <span class="tag">{{ kw }}</span>
+        {% endfor %}
+      </div>
+      <canvas id="statsChart" height="180"></canvas>
+    </div>
+
+    <!-- Attendees detected in the meeting -->
+    {% if meeting.notes.attendees %}
+    <div class="card">
+      <h2>👥 Attendees</h2>
+      <div class="tags">
+        {% for name in meeting.notes.attendees %}
+          <span class="tag">{{ name }}</span>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Speaker talk-time (only when speaker diarization was used) -->
+    {% if meeting.has_speakers and meeting.talk_time %}
+    <div class="card">
+      <h2>🎙️ Who Spoke How Much</h2>
+      <canvas id="talkTimeChart" height="200"></canvas>
+    </div>
+    {% endif %}
+
+    <!-- Sentiment timeline (mood over the meeting) -->
+    {% if meeting.sentiment_timeline %}
+    <div class="card">
+      <h2>📈 Sentiment Timeline</h2>
+      <canvas id="timelineChart" height="200"></canvas>
+    </div>
+    {% endif %}
+
+    <!-- Chapters -->
+    {% if meeting.chapters %}
+    <div class="card">
+      <h2>⏱️ Topic Chapters</h2>
+      <ul class="chapter-list">
+        {% for c in meeting.chapters %}
+          <li><span class="chapter-time">{{ c.time }}</span> {{ c.title }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    <!-- Chat with your meeting -->
+    <div class="card">
+      <h2>💬 Chat with this Meeting</h2>
+      <div id="chatBox" class="chat-box">
+        <div class="chat-msg bot">Ask me anything about this meeting!</div>
+      </div>
+      <div class="chat-input-row">
+        <input type="text" id="chatInput" class="text-input"
+               placeholder="e.g. What are my action items?" />
+        <button id="chatSend" class="btn-primary">Send</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Hidden data blocks read by the charts / JS -->
+<div id="chartData"
+     data-keypoints="{{ meeting.notes.key_points|length }}"
+     data-decisions="{{ meeting.notes.decisions|length }}"
+     data-actions="{{ meeting.notes.action_items|length }}"
+     data-sentiment="{{ meeting.notes.sentiment.label }}"></div>
+
+<!-- Data for the talk-time and sentiment-timeline charts (read by script.js) -->
+<script id="talkTimeData" type="application/json">{{ meeting.talk_time|tojson }}</script>
+<script id="timelineData" type="application/json">{{ meeting.sentiment_timeline|tojson }}</script>
+
+<!-- Modal used to show the follow-up email draft -->
+<div id="emailModal" class="modal hidden">
+  <div class="modal-card">
+    <h2>✉️ Follow-up Email Draft</h2>
+    <textarea id="emailText" rows="14" class="text-input"></textarea>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="copyEmail()">📋 Copy</button>
+      <button class="btn-primary" onclick="closeEmail()">Close</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Bring the results page to life (charts, chat, action items, email).
+  initResultsPage();
+</script>
+{% endblock %}

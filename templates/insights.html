@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Insights — TalkToText Pro{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>📈 Insights Dashboard</h1>
+  <p class="muted">A bird's-eye view across all your meetings.</p>
+</div>
+
+<!-- Top stat cards -->
+<div class="stats-row">
+  <div class="stat-card">
+    <div class="stat-num">{{ total }}</div>
+    <div class="stat-label">Meetings</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num">{{ total_actions }}</div>
+    <div class="stat-label">Action Items</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num">{{ done_actions }}</div>
+    <div class="stat-label">Completed</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num">{{ completion }}%</div>
+    <div class="stat-label">Completion Rate</div>
+  </div>
+</div>
+
+{% if total == 0 %}
+  <div class="empty">No meetings yet. <a href="{{ url_for('index') }}">Create one →</a></div>
+{% else %}
+<div class="grid-2">
+  <div class="card">
+    <h2>🙂 Sentiment Across Meetings</h2>
+    <canvas id="sentimentPie" height="220"></canvas>
+  </div>
+  <div class="card">
+    <h2>🗓️ Meetings Over Time</h2>
+    <canvas id="trendChart" height="220"></canvas>
+  </div>
+</div>
+
+<div class="card">
+  <h2>🔑 Most Discussed Topics</h2>
+  <div class="tags">
+    {% for kw, count in top_keywords %}
+      <span class="tag">{{ kw }} ({{ count }})</span>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Data blocks read by script.js -->
+<script id="insightsData" type="application/json">
+{
+  "sentiment": {{ sentiment_counts|tojson }},
+  "trend": {{ trend|tojson }}
+}
+</script>
+{% endblock %}
+
+{% block scripts %}
+<script>initInsightsPage();</script>
+{% endblock %}

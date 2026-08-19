@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}New Meeting — TalkToText Pro{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>New Meeting</h1>
+  <p class="muted">Upload a recording or record live, and let AI write your notes.</p>
+</div>
+
+<div class="card upload-card">
+  <!-- meeting details -->
+  <label class="field-label">Meeting title</label>
+  <input type="text" id="title" class="text-input"
+         placeholder="e.g. Weekly Product Sync" />
+
+  <div class="two-col">
+    <div>
+      <label class="field-label">Spoken language</label>
+      <select id="language" class="text-input">
+        <option value="auto">Auto-detect</option>
+        <option value="en">English</option>
+        <option value="ur">Urdu</option>
+        <option value="hi">Hindi</option>
+        <option value="ar">Arabic</option>
+        <option value="es">Spanish</option>
+        <option value="fr">French</option>
+      </select>
+    </div>
+    <div>
+      <label class="field-label">Notes output language</label>
+      <select id="output_language" class="text-input">
+        <option value="English">English</option>
+        <option value="Urdu">Urdu</option>
+        <option value="Arabic">Arabic</option>
+        <option value="Spanish">Spanish</option>
+        <option value="French">French</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- two ways to give us audio: upload or record -->
+  <div class="input-methods">
+    <!-- Method 1: upload a file -->
+    <div class="method-box">
+      <h3>📁 Upload a file</h3>
+      <p class="muted small">.mp3 .wav .m4a .mp4</p>
+      <input type="file" id="fileInput" accept=".mp3,.wav,.m4a,.mp4,audio/*" />
+      <div id="fileName" class="file-name"></div>
+    </div>
+
+    <!-- Method 2: record in the browser -->
+    <div class="method-box">
+      <h3>🎤 Record now</h3>
+      <p class="muted small">Record directly from your microphone</p>
+      <button id="recordBtn" class="btn-record">● Start recording</button>
+      <div id="recordStatus" class="file-name"></div>
+    </div>
+  </div>
+
+  <button id="processBtn" class="btn-primary full big">✨ Generate Meeting Notes</button>
+
+  <!-- progress tracker, hidden until we start processing -->
+  <div id="progressArea" class="progress-area hidden">
+    <div class="progress-bar-outer">
+      <div id="progressBar" class="progress-bar-inner"></div>
+    </div>
+    <div id="progressMessage" class="progress-message">Starting...</div>
+    <div class="steps">
+      <span data-step="transcribe">Transcribe</span> →
+      <span data-step="translate">Translate</span> →
+      <span data-step="optimize">Optimize</span> →
+      <span data-step="generate">Generate</span>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Wire up the New Meeting page (upload, record, progress).
+  initNewMeetingPage();
+</script>
+{% endblock %}

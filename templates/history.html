@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}History — TalkToText Pro{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Meeting History</h1>
+  <p class="muted">All your past meetings, saved securely to your account.</p>
+</div>
+
+<!-- Global search across all meetings -->
+<form class="search-row" method="GET" action="{{ url_for('history') }}">
+  <input type="text" name="q" class="text-input" value="{{ search }}"
+         placeholder="🔍 Search across all meetings (keywords, tasks, names)..." />
+  <button class="btn-primary" type="submit">Search</button>
+</form>
+
+{% if meetings %}
+  <div class="history-grid">
+    {% for m in meetings %}
+    <a class="history-card" href="{{ url_for('results', meeting_id=m._id) }}">
+      <div class="history-title">{{ m.title }}</div>
+      <div class="history-date">{{ m.created_at[:16].replace('T', ' ') }}</div>
+      <p class="history-summary">
+        {{ (m.notes.summary or 'No summary')[:120] }}...
+      </p>
+      {% if m._snippet %}
+        <div class="history-snippet">match: {{ m._snippet }}</div>
+      {% endif %}
+      <div class="tags">
+        <span class="pill">{{ m.notes.action_items|length }} tasks</span>
+        <span class="pill priority-{{ (m.notes.sentiment.label or 'Neutral')|lower }}">
+          {{ m.notes.sentiment.label }}
+        </span>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="empty">
+    {% if search %}
+      No meetings matched "<b>{{ search }}</b>".
+    {% else %}
+      No meetings yet. <a href="{{ url_for('index') }}">Create your first one →</a>
+    {% endif %}
+  </div>
+{% endif %}
+{% endblock %}

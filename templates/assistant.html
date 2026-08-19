@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}AI Assistant — TalkToText Pro{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>🤖 AI Assistant</h1>
+  <p class="muted">Ask a question and I'll answer using ALL your past meetings.</p>
+</div>
+
+<div class="card">
+  <div id="assistantBox" class="chat-box" style="height: 340px;">
+    <div class="chat-msg bot">
+      Hi! Ask me anything across your meetings — e.g.
+      "What did we decide about the budget?" or
+      "List all my pending tasks."
+    </div>
+  </div>
+  <div class="chat-input-row">
+    <input type="text" id="assistantInput" class="text-input"
+           placeholder="Ask across all meetings..." />
+    <button id="assistantSend" class="btn-primary">Ask</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>initAssistantPage();</script>
+{% endblock %}
