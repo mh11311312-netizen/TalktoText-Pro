@@ -15,7 +15,22 @@ load_dotenv()
 
 MONGO_URI = os.getenv("MONGO_URI", "").strip()
 MONGO_DB = os.getenv("MONGO_DB", "talktotext")
-JSON_PATH = os.path.join(os.path.dirname(__file__), "data_store.json")
+
+
+def _get_json_path():
+    # If running on Vercel/serverless or read-only filesystem, use /tmp
+    local_path = os.path.join(os.path.dirname(__file__), "data_store.json")
+    try:
+        test_file = os.path.join(os.path.dirname(__file__), ".write_test")
+        with open(test_file, "w") as f:
+            f.write("ok")
+        os.remove(test_file)
+        return local_path
+    except (OSError, PermissionError):
+        return os.path.join("/tmp", "data_store.json")
+
+
+JSON_PATH = _get_json_path()
 
 _mode = None          # set to "mongo" or "json" once we've connected
 _users = None
@@ -24,7 +39,7 @@ _meetings = None
 
 def _connect():
     # Lazy connect on first use. Tries Mongo, falls back to the JSON file.
-    global _mode, _users, _meetings
+    global _mode, _users, _meetings, JSON_PATH
     if _mode is not None:
         return
 
@@ -43,20 +58,42 @@ def _connect():
             print(f"[database] MongoDB unavailable ({exc}). Using local JSON file.")
 
     _mode = "json"
+    JSON_PATH = _get_json_path()
     if not os.path.exists(JSON_PATH):
-        with open(JSON_PATH, "w") as f:
-            json.dump({"users": [], "meetings": []}, f)
-    print("[database] Using local JSON storage (data_store.json).")
+        try:
+            with open(JSON_PATH, "w") as f:
+                json.dump({"users": [], "meetings": []}, f)
+        except Exception as exc:
+            print(f"[database] Error creating JSON store: {exc}")
+    print(f"[database] Using local JSON storage ({JSON_PATH}).")
 
 
 def _read_json():
-    with open(JSON_PATH, "r") as f:
-        return json.load(f)
+    global JSON_PATH
+    if JSON_PATH is None:
+        JSON_PATH = _get_json_path()
+    if not os.path.exists(JSON_PATH):
+        try:
+            with open(JSON_PATH, "w") as f:
+                json.dump({"users": [], "meetings": []}, f)
+        except Exception:
+            return {"users": [], "meetings": []}
+    try:
+        with open(JSON_PATH, "r") as f:
+            return json.load(f)
+    except Exception:
+        return {"users": [], "meetings": []}
 
 
 def _write_json(data):
-    with open(JSON_PATH, "w") as f:
-        json.dump(data, f, indent=2, default=str)
+    global JSON_PATH
+    if JSON_PATH is None:
+        JSON_PATH = _get_json_path()
+    try:
+        with open(JSON_PATH, "w") as f:
+            json.dump(data, f, indent=2, default=str)
+    except Exception as exc:
+        print(f"[database] Write error: {exc}")
 
 
 # ---- users ----

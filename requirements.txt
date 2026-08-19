@@ -11,3 +11,4 @@ Werkzeug==3.0.4           # password hashing + secure file handling
 fpdf2==2.7.9              # export meeting notes to PDF
 python-docx==1.1.2        # export meeting notes to Word (.docx)
 requests==2.32.3          # calls the AssemblyAI API (optional speaker labels)
+gunicorn==22.0.0          # WSGI HTTP Server for production deployment

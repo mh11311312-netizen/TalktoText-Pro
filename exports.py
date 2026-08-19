@@ -10,8 +10,22 @@ from fpdf import FPDF
 from docx import Document
 from docx.shared import Pt, RGBColor
 
-EXPORT_DIR = os.path.join(os.path.dirname(__file__), "exports")
-os.makedirs(EXPORT_DIR, exist_ok=True)
+def _get_export_dir():
+    local_path = os.path.join(os.path.dirname(__file__), "exports")
+    try:
+        os.makedirs(local_path, exist_ok=True)
+        test_file = os.path.join(local_path, ".write_test")
+        with open(test_file, "w") as f:
+            f.write("ok")
+        os.remove(test_file)
+        return local_path
+    except (OSError, PermissionError):
+        tmp_path = os.path.join("/tmp", "exports")
+        os.makedirs(tmp_path, exist_ok=True)
+        return tmp_path
+
+
+EXPORT_DIR = _get_export_dir()
 
 
 def _clean(text):

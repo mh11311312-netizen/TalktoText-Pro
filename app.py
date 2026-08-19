@@ -28,21 +28,62 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "dev-secret-change-me")
 
-UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "uploads")
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+def _get_dir(name):
+    local_path = os.path.join(os.path.dirname(__file__), name)
+    try:
+        os.makedirs(local_path, exist_ok=True)
+        test_file = os.path.join(local_path, ".write_test")
+        with open(test_file, "w") as f:
+            f.write("ok")
+        os.remove(test_file)
+        return local_path
+    except (OSError, PermissionError):
+        tmp_path = os.path.join("/tmp", name)
+        os.makedirs(tmp_path, exist_ok=True)
+        return tmp_path
+
+
+UPLOAD_DIR = _get_dir("uploads")
+JOBS_DIR = _get_dir("jobs")
 ALLOWED = {".mp3", ".wav", ".m4a", ".mp4", ".webm", ".ogg"}
 
-# Track in-flight jobs in memory. Fine for a single-instance app like this;
-# you'd move it to Redis or similar if you ever ran multiple workers.
+# Track in-flight jobs in memory and /tmp cache for serverless environments.
 JOBS = {}
 
 
+def get_job_state(job_id):
+    if job_id in JOBS:
+        return JOBS[job_id]
+    job_file = os.path.join(JOBS_DIR, f"{job_id}.json")
+    if os.path.exists(job_file):
+        try:
+            import json
+            with open(job_file, "r") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return None
+
+
+def update_job_state(job_id, data):
+    JOBS[job_id] = data
+    job_file = os.path.join(JOBS_DIR, f"{job_id}.json")
+    try:
+        import json
+        with open(job_file, "w") as f:
+            json.dump(data, f)
+    except Exception:
+        pass
+
+
 def process_meeting(job_id, username, file_path, title, language, output_language):
-    # This runs on a worker thread. It walks the audio through the whole
-    # pipeline and keeps bumping the job's progress so the UI can follow along.
+    # Walks the audio through the whole pipeline and updates progress.
     def step(percent, message):
-        JOBS[job_id]["progress"] = percent
-        JOBS[job_id]["message"] = message
+        job = get_job_state(job_id) or {}
+        job["progress"] = percent
+        job["message"] = message
+        update_job_state(job_id, job)
 
     try:
         step(15, "Transcribing audio...")
@@ -98,13 +139,17 @@ def process_meeting(job_id, username, file_path, title, language, output_languag
             pass
 
         step(100, "Done!")
-        JOBS[job_id]["status"] = "done"
-        JOBS[job_id]["meeting_id"] = meeting_id
+        final_state = get_job_state(job_id) or {}
+        final_state["status"] = "done"
+        final_state["meeting_id"] = meeting_id
+        update_job_state(job_id, final_state)
 
     except Exception as exc:
         traceback.print_exc()
-        JOBS[job_id]["status"] = "error"
-        JOBS[job_id]["message"] = f"Something went wrong: {exc}"
+        err_state = get_job_state(job_id) or {}
+        err_state["status"] = "error"
+        err_state["message"] = f"Something went wrong: {exc}"
+        update_job_state(job_id, err_state)
 
 
 # ---- auth ----
@@ -149,7 +194,7 @@ def index():
 @app.route("/upload", methods=["POST"])
 @login_required
 def upload():
-    # Takes the file, saves it, and starts the background job.
+    # Takes the file, saves it, and starts the job.
     if "audio" not in request.files:
         return jsonify({"error": "No audio file received."}), 400
 
@@ -167,16 +212,24 @@ def upload():
     output_language = request.form.get("output_language", "English")
 
     job_id = os.urandom(8).hex()
-    JOBS[job_id] = {"status": "working", "progress": 5,
-                    "message": "Starting...", "meeting_id": None}
+    initial_job = {"status": "working", "progress": 5,
+                   "message": "Starting...", "meeting_id": None}
+    update_job_state(job_id, initial_job)
 
-    thread = threading.Thread(
-        target=process_meeting,
-        args=(job_id, session["username"], file_path, title,
-              language, output_language),
-        daemon=True,
-    )
-    thread.start()
+    # In serverless environments like Vercel (where background threads are paused when response returns),
+    # process directly during the request. On persistent servers, use a thread.
+    is_serverless = bool(os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
+    if is_serverless:
+        process_meeting(job_id, session["username"], file_path, title,
+                        language, output_language)
+    else:
+        thread = threading.Thread(
+            target=process_meeting,
+            args=(job_id, session["username"], file_path, title,
+                  language, output_language),
+            daemon=True,
+        )
+        thread.start()
 
     return jsonify({"job_id": job_id})
 
@@ -185,7 +238,7 @@ def upload():
 @login_required
 def status(job_id):
     # Polled by the progress bar on the upload page.
-    job = JOBS.get(job_id)
+    job = get_job_state(job_id)
     if not job:
         return jsonify({"error": "Unknown job."}), 404
     return jsonify(job)
