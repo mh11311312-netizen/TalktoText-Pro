@@ -178,7 +178,9 @@ def process_meeting(job_id, username, file_path, title, language, output_languag
 @app.route("/api")
 @app.route("/api/index")
 def api_home():
-    return redirect(url_for("index"))
+    if "username" in session:
+        return render_template("index.html", username=session["username"])
+    return render_template("login.html")
 
 
 @app.route("/register", methods=["GET", "POST"])
