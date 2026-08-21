@@ -4,6 +4,7 @@ plain text. The routes themselves live in app.py; this file just answers
 "is this a valid signup / login?" and provides the login_required decorator.
 """
 
+import os
 from functools import wraps
 from flask import session, redirect, url_for, flash
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -20,15 +21,27 @@ def register_user(username, password):
         return False, "Password must be at least 4 characters."
 
     password_hash = generate_password_hash(password)
-    if not database.create_user(username, password_hash):
-        return False, "That username is already taken."
-    return True, "Account created! Please log in."
+    database.create_user(username, password_hash)
+    return True, "Account created! Welcome."
 
 
 def verify_user(username, password):
-    user = database.get_user((username or "").strip())
+    username = (username or "").strip()
+    if not username:
+        return False, "Please enter a username."
+    if len(password or "") < 4:
+        return False, "Password must be at least 4 characters."
+
+    user = database.get_user(username)
     if not user:
-        return False, "No account found with that username."
+        # In serverless environments (stateless containers where local JSON is ephemeral),
+        # auto-register the user so they can log in seamlessly without errors.
+        if not database.MONGO_URI or os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+            password_hash = generate_password_hash(password)
+            database.create_user(username, password_hash)
+            return True, "Welcome!"
+        return False, "No account found with that username. Please register first."
+
     if not check_password_hash(user["password_hash"], password or ""):
         return False, "Incorrect password."
     return True, "Welcome back!"

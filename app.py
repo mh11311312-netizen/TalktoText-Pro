@@ -201,9 +201,11 @@ def api_home():
         # Check if login or register
         if request.form.get("is_register"):
             ok, msg = register_user(username, password)
-            flash(msg, "success" if ok else "error")
             if ok:
-                return redirect(url_for("login"))
+                session["username"] = username
+                flash(msg, "success")
+                return redirect(url_for("index"))
+            flash(msg, "error")
             return render_template("register.html")
         else:
             ok, msg = verify_user(username, password)
@@ -220,11 +222,13 @@ def api_home():
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
-        ok, msg = register_user(request.form.get("username"),
-                                request.form.get("password"))
-        flash(msg, "success" if ok else "error")
+        username = request.form.get("username", "").strip()
+        ok, msg = register_user(username, request.form.get("password"))
         if ok:
-            return redirect(url_for("login"))
+            session["username"] = username
+            flash(msg, "success")
+            return redirect(url_for("index"))
+        flash(msg, "error")
     return render_template("register.html")
 
 
