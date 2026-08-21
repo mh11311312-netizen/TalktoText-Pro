@@ -14,7 +14,7 @@ import os
 import threading
 import traceback
 from flask import (Flask, render_template, request, redirect, url_for,
-                   session, flash, jsonify, send_file)
+                   session, flash, jsonify, send_file, send_from_directory)
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 
@@ -36,6 +36,21 @@ app = Flask(
     static_url_path="/static"
 )
 app.secret_key = os.getenv("SECRET_KEY", "dev-secret-change-me")
+
+
+@app.route("/static/<path:filename>")
+def serve_static(filename):
+    return send_from_directory(STATIC_DIR, filename)
+
+
+@app.route("/style.css")
+def serve_root_style():
+    return send_from_directory(STATIC_DIR, "style.css")
+
+
+@app.route("/script.js")
+def serve_root_script():
+    return send_from_directory(STATIC_DIR, "script.js")
 
 
 def _get_dir(name):
