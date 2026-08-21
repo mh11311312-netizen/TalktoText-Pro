@@ -35,7 +35,9 @@ app = Flask(
     static_folder=STATIC_DIR,
     static_url_path="/static"
 )
-app.secret_key = os.getenv("SECRET_KEY", "dev-secret-change-me")
+raw_secret = (os.getenv("SECRET_KEY") or "").strip()
+app.secret_key = raw_secret if raw_secret else "talktotext-pro-secret-key-production-87654321"
+app.config["SECRET_KEY"] = app.secret_key
 
 
 @app.route("/static/<path:filename>")
