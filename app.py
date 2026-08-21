@@ -190,9 +190,26 @@ def process_meeting(job_id, username, file_path, title, language, output_languag
 
 # ---- auth ----
 
-@app.route("/api")
-@app.route("/api/index")
+@app.route("/api", methods=["GET", "POST"])
+@app.route("/api/index", methods=["GET", "POST"])
 def api_home():
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
+        # Check if login or register
+        if request.form.get("is_register"):
+            ok, msg = register_user(username, password)
+            flash(msg, "success" if ok else "error")
+            if ok:
+                return redirect(url_for("login"))
+            return render_template("register.html")
+        else:
+            ok, msg = verify_user(username, password)
+            if ok:
+                session["username"] = username
+                return redirect(url_for("index"))
+            flash(msg, "error")
+            return render_template("login.html")
     if "username" in session:
         return render_template("index.html", username=session["username"])
     return render_template("login.html")
