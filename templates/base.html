@@ -45,8 +45,8 @@
     <div class="sidebar-bottom">
       <button id="themeToggle" class="theme-btn">🌙 Dark mode</button>
       <div class="user-row">
-        <div class="user-avatar">{{ session['username'][:1]|upper }}</div>
-        <div class="user-chip">{{ session['username'] }}</div>
+        <div class="user-avatar">{{ (session.get('username') or '')[:1]|upper }}</div>
+        <div class="user-chip">{{ session.get('username', '') }}</div>
         <a class="logout" href="{{ url_for('logout') }}" title="Log out">⏻</a>
       </div>
     </div>
