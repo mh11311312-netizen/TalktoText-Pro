@@ -175,6 +175,12 @@ def process_meeting(job_id, username, file_path, title, language, output_languag
 
 # ---- auth ----
 
+@app.route("/api")
+@app.route("/api/index")
+def api_home():
+    return redirect(url_for("index"))
+
+
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
@@ -507,7 +513,44 @@ def send_email(meeting_id):
         return jsonify({"sent": False, "draft": body, "note": f"Send failed: {exc}"})
 
 
+@app.errorhandler(Exception)
+def handle_unexpected_error(e):
+    from werkzeug.exceptions import HTTPException
+    if isinstance(e, HTTPException):
+        return e
+    import traceback
+    tb = traceback.format_exc()
+    print("=== UNHANDLED FLASK EXCEPTION ===", flush=True)
+    print(tb, flush=True)
+    if request.is_json or request.path.startswith("/chat") or request.path.startswith("/upload"):
+        return jsonify({"error": str(e), "traceback": tb}), 500
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Application Error</title>
+        <style>
+            body {{ font-family: system-ui, -apple-system, sans-serif; background: #0f172a; color: #f8fafc; padding: 40px; }}
+            .card {{ max-width: 800px; margin: 0 auto; background: #1e293b; border-radius: 12px; padding: 28px; border: 1px solid #334155; }}
+            h1 {{ color: #f87171; font-size: 24px; margin-top: 0; }}
+            pre {{ background: #090d16; padding: 16px; border-radius: 8px; overflow-x: auto; color: #38bdf8; font-size: 13px; line-height: 1.5; }}
+            a {{ color: #60a5fa; text-decoration: none; }}
+        </style>
+    </head>
+    <body>
+        <div class="card">
+            <h1>⚠️ Application Error</h1>
+            <p><b>Exception:</b> {type(e).__name__}: {str(e)}</p>
+            <pre>{tb}</pre>
+            <p><a href="/login">← Back to Login</a></p>
+        </div>
+    </body>
+    </html>
+    """, 500
+
+
 if __name__ == "__main__":
     # use_reloader=False because the auto-reloader watches every installed
     # package and restarts in a loop on some setups. Debug pages stay on.
     app.run(debug=True, use_reloader=False, host="127.0.0.1", port=5000)
+
