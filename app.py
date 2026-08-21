@@ -25,12 +25,30 @@ from auth import register_user, verify_user, login_required
 
 load_dotenv()
 
-app = Flask(__name__)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+TEMPLATE_DIR = os.path.join(BASE_DIR, "templates")
+STATIC_DIR = os.path.join(BASE_DIR, "static")
+
+app = Flask(
+    __name__,
+    template_folder=TEMPLATE_DIR,
+    static_folder=STATIC_DIR,
+    static_url_path="/static"
+)
 app.secret_key = os.getenv("SECRET_KEY", "dev-secret-change-me")
 
 
 def _get_dir(name):
-    local_path = os.path.join(os.path.dirname(__file__), name)
+    # In Vercel serverless environment, use /tmp directly
+    if os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+        tmp_path = os.path.join("/tmp", name)
+        try:
+            os.makedirs(tmp_path, exist_ok=True)
+            return tmp_path
+        except Exception:
+            return "/tmp"
+
+    local_path = os.path.join(BASE_DIR, name)
     try:
         os.makedirs(local_path, exist_ok=True)
         test_file = os.path.join(local_path, ".write_test")
@@ -38,10 +56,13 @@ def _get_dir(name):
             f.write("ok")
         os.remove(test_file)
         return local_path
-    except (OSError, PermissionError):
+    except Exception:
         tmp_path = os.path.join("/tmp", name)
-        os.makedirs(tmp_path, exist_ok=True)
-        return tmp_path
+        try:
+            os.makedirs(tmp_path, exist_ok=True)
+            return tmp_path
+        except Exception:
+            return "/tmp"
 
 
 UPLOAD_DIR = _get_dir("uploads")

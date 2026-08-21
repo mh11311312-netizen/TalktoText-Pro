@@ -18,7 +18,10 @@ MONGO_DB = os.getenv("MONGO_DB", "talktotext")
 
 
 def _get_json_path():
-    # If running on Vercel/serverless or read-only filesystem, use /tmp
+    # If running on Vercel/serverless, use /tmp directly
+    if os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+        return os.path.join("/tmp", "data_store.json")
+
     local_path = os.path.join(os.path.dirname(__file__), "data_store.json")
     try:
         test_file = os.path.join(os.path.dirname(__file__), ".write_test")
@@ -26,7 +29,7 @@ def _get_json_path():
             f.write("ok")
         os.remove(test_file)
         return local_path
-    except (OSError, PermissionError):
+    except Exception:
         return os.path.join("/tmp", "data_store.json")
 
 
@@ -108,9 +111,10 @@ def create_user(username, password_hash):
         return True
     else:
         data = _read_json()
-        if any(u["username"] == username for u in data["users"]):
+        users = data.setdefault("users", [])
+        if any(u.get("username") == username for u in users):
             return False
-        data["users"].append({"username": username, "password_hash": password_hash})
+        users.append({"username": username, "password_hash": password_hash})
         _write_json(data)
         return True
 
@@ -120,8 +124,8 @@ def get_user(username):
     if _mode == "mongo":
         return _users.find_one({"username": username})
     data = _read_json()
-    for u in data["users"]:
-        if u["username"] == username:
+    for u in data.get("users", []):
+        if u.get("username") == username:
             return u
     return None
 
@@ -141,7 +145,7 @@ def save_meeting(username, record):
         _meetings.insert_one(record)
     else:
         data = _read_json()
-        data["meetings"].append(record)
+        data.setdefault("meetings", []).append(record)
         _write_json(data)
     return meeting_id
 
@@ -152,8 +156,8 @@ def get_meeting(username, meeting_id):
     if _mode == "mongo":
         return _meetings.find_one({"_id": meeting_id, "username": username})
     data = _read_json()
-    for m in data["meetings"]:
-        if m["_id"] == meeting_id and m["username"] == username:
+    for m in data.get("meetings", []):
+        if m.get("_id") == meeting_id and m.get("username") == username:
             return m
     return None
 
@@ -166,7 +170,7 @@ def list_meetings(username, search=None):
         results = list(_meetings.find({"username": username}))
     else:
         data = _read_json()
-        results = [m for m in data["meetings"] if m["username"] == username]
+        results = [m for m in data.get("meetings", []) if m.get("username") == username]
 
     results.sort(key=lambda m: m.get("created_at", ""), reverse=True)
 
@@ -194,7 +198,8 @@ def update_action_items(username, meeting_id, action_items):
         )
     else:
         data = _read_json()
-        for m in data["meetings"]:
-            if m["_id"] == meeting_id and m["username"] == username:
-                m["notes"]["action_items"] = action_items
+        for m in data.get("meetings", []):
+            if m.get("_id") == meeting_id and m.get("username") == username:
+                m.setdefault("notes", {})["action_items"] = action_items
         _write_json(data)
+

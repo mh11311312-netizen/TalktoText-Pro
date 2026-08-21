@@ -11,6 +11,14 @@ from docx import Document
 from docx.shared import Pt, RGBColor
 
 def _get_export_dir():
+    if os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+        tmp_path = os.path.join("/tmp", "exports")
+        try:
+            os.makedirs(tmp_path, exist_ok=True)
+            return tmp_path
+        except Exception:
+            return "/tmp"
+
     local_path = os.path.join(os.path.dirname(__file__), "exports")
     try:
         os.makedirs(local_path, exist_ok=True)
@@ -19,10 +27,13 @@ def _get_export_dir():
             f.write("ok")
         os.remove(test_file)
         return local_path
-    except (OSError, PermissionError):
+    except Exception:
         tmp_path = os.path.join("/tmp", "exports")
-        os.makedirs(tmp_path, exist_ok=True)
-        return tmp_path
+        try:
+            os.makedirs(tmp_path, exist_ok=True)
+            return tmp_path
+        except Exception:
+            return "/tmp"
 
 
 EXPORT_DIR = _get_export_dir()
